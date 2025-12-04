@@ -3,21 +3,21 @@
     "username": "your_username",
     "password": "your_password",
     "database": "csd_412_final_project_dev",
-    "host": "127.0.0.1",
+    "host": "localhost:5432",
     "dialect": "postgres"
   },
   "test": {
     "username": "your_username",
     "password": "your_password",
     "database": "csd_412_final_project_test",
-    "host": "127.0.0.1",
+    "host": "localhost:5432",
     "dialect": "postgres"
   },
   "production": {
     "username": "your_username",
     "password": "your_password",
     "database": "csd_412_final_project_prod",
-    "host": "127.0.0.1",
+    "host": "localhost:5432",
     "dialect": "postgres"
   }
 }
