@@ -4,24 +4,30 @@ const costInput = document.getElementById("cost");
 const descriptionInput = document.getElementById("description");
 const tableBody = document.getElementById("userexpenses");
 const totalCostCell = document.getElementById("totalCost");
+const budgetField = document.getElementById("budget");
+const budgetStatusCell = document.getElementById("budgetStatus");
 
 let total = 0;
+let budget = parseFloat(budgetField.textContent) || 0;
 
-form.addEventListener("submit", function (e) {
-  e.preventDefault(); // Stop page reload
+// Helper to update budget status
+function updateBudgetStatus() {
+  const overUnder = budget - total;
+  budgetStatusCell.textContent =
+    overUnder >= 0 ? `+$${overUnder.toFixed(2)}` : `-$${Math.abs(overUnder).toFixed(2)}`;
+}
 
-  const name = expenseNameInput.value.trim();
-  const cost = parseFloat(costInput.value);
-  const description = descriptionInput.value.trim();
-
-  if (!name || isNaN(cost)) {
-    document.getElementById("errormsg").textContent = "Please enter a valid name and cost.";
-    return;
+// Update budget when user edits the field
+budgetField.addEventListener("input", () => {
+  const val = parseFloat(budgetField.textContent);
+  if (!isNaN(val)) {
+    budget = val;
+    updateBudgetStatus();
   }
+});
 
-  document.getElementById("errormsg").textContent = "";
-
-  // Create row
+// Function to render table row
+function addExpenseRow(name, cost, description) {
   const row = document.createElement("tr");
 
   row.innerHTML = `
@@ -36,13 +42,34 @@ form.addEventListener("submit", function (e) {
   // Update total
   total += cost;
   totalCostCell.textContent = `$${total.toFixed(2)}`;
+  updateBudgetStatus();
 
-  // Delete button logic
-  row.querySelector(".deleteBtn").addEventListener("click", function () {
+  // Delete logic
+  row.querySelector(".deleteBtn").addEventListener("click", () => {
     tableBody.removeChild(row);
     total -= cost;
     totalCostCell.textContent = `$${total.toFixed(2)}`;
+    updateBudgetStatus();
   });
+}
+
+// Handle form submission
+form.addEventListener("submit", function (e) {
+  e.preventDefault();
+
+  const name = expenseNameInput.value.trim();
+  const cost = parseFloat(costInput.value);
+  const description = descriptionInput.value.trim();
+
+  if (!name || isNaN(cost)) {
+    document.getElementById("errormsg").textContent =
+      "Please enter a valid name and cost.";
+    return;
+  }
+
+  document.getElementById("errormsg").textContent = "";
+
+  addExpenseRow(name, cost, description);
 
   // Clear form
   expenseNameInput.value = "";
