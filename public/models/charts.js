@@ -1,26 +1,40 @@
-const ctx = document.getElementById('myChart').getContext('2d');
-const chart = new Chart(ctx, {
-  type: 'doughnut',
-  data: {
-    labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
-    datasets: [{
-      label: 'Expenses',
-      backgroundColor: [
-        'rgb(255, 99, 132)',
-          'rgb(255, 159, 64)',
-          'rgb(255, 205, 86)',
-          'rgb(75, 192, 192)',
-          'rgb(54, 162, 235)',
-      ],
-      data: [0, 10, 5, 2, 20, 30, 45]
-    }]
-  },
-  options: {
-    responsive: true,
-    scales: {
-      yAxes: [{
-        ticks: { beginAtZero: true }
-      }]
-    }
+(async function() {
+  const ctx = document.getElementById('myChart').getContext('2d');
+
+  // Fetch your data from the server
+  const response = await fetch('/api/expenses');
+  const expenses = await response.json();
+
+  // Extract labels and data
+  const labels = expenses.map(item => item.expense);
+  const data = expenses.map(item => item.cost);
+
+  // Function to generate random colors
+  function getRandomColor() {
+    const r = Math.floor(Math.random() * 255);
+    const g = Math.floor(Math.random() * 255);
+    const b = Math.floor(Math.random() * 255);
+    return `rgb(${r}, ${g}, ${b})`;
   }
-});
+
+  const backgroundColors = expenses.map(() => getRandomColor());
+
+  // Create the chart
+  const chart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Expenses',
+        data: data,
+        backgroundColor: backgroundColors
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' }
+      }
+    }
+  });
+})();
