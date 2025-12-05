@@ -5,7 +5,7 @@ const path = require('path');
 const app = express();
 const port = 3000;
 
-const BudgetChart = require('./models/BudgetTable');
+const BudgetTable = require('./models/BudgetTable');
 const sequelize = require('./database');
 
 // Sync the database
@@ -37,7 +37,7 @@ app.get('/charts', (req, res) => res.sendFile(path.join(__dirname, 'public', 'ch
 // GET all expenses
 app.get('/api/expenses', async (req, res) => {
   try {
-    const expenses = await BudgetChart.findAll({ order: [['createdAt', 'ASC']] });
+    const expenses = await BudgetTable.findAll({ order: [['createdAt', 'ASC']] });
     res.json(expenses);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch expenses' });
@@ -47,8 +47,8 @@ app.get('/api/expenses', async (req, res) => {
 // POST new expense
 app.post('/api/expenses', async (req, res) => {
   try {
-    const { userId, expense, cost, description, budget, amount } = req.body;
-    const newExpense = await BudgetChart.create({ userId, expense, cost, description, budget, amount });
+    const { userId, expense, cost, description, amount } = req.body;
+    const newExpense = await BudgetTable.create({ userId, expense, cost, description, amount });
     res.json(newExpense);
   } catch (err) {
     res.status(500).json({ error: 'Failed to save expense' });
@@ -59,7 +59,7 @@ app.post('/api/expenses', async (req, res) => {
 app.delete('/api/expenses/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const deleted = await BudgetChart.destroy({ where: { id } });
+    const deleted = await BudgetTable.destroy({ where: { id } });
     if (deleted) res.json({ success: true });
     else res.status(404).json({ error: 'Expense not found' });
   } catch (err) {
