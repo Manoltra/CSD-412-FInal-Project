@@ -10,10 +10,11 @@ const errorMsg = document.getElementById("errormsg");
 
 let total = 0;
 let budget = parseFloat(budgetField.textContent) || 0;
+let expenses = []; // In-memory array
 
-/* -----------------------------
-   Budget Logic
-------------------------------*/
+// -----------------------------
+// Budget Logic
+// -----------------------------
 function updateBudgetStatus() {
   const overUnder = budget - total;
   budgetStatusCell.textContent =
@@ -30,9 +31,9 @@ budgetField.addEventListener("input", () => {
   }
 });
 
-/* -----------------------------
-   Render Row
-------------------------------*/
+// -----------------------------
+// Render Row
+// -----------------------------
 function addExpenseRow(name, cost, description, id = null) {
   const row = document.createElement("tr");
   row.dataset.id = id;
@@ -50,47 +51,35 @@ function addExpenseRow(name, cost, description, id = null) {
   totalCostCell.textContent = `$${total.toFixed(2)}`;
   updateBudgetStatus();
 
-  // ❌ Delete Button
-  row.querySelector(".deleteBtn").addEventListener("click", async () => {
+  // Delete button
+  row.querySelector(".deleteBtn").addEventListener("click", () => {
     tableBody.removeChild(row);
     total -= cost;
     totalCostCell.textContent = `$${total.toFixed(2)}`;
     updateBudgetStatus();
 
-    // OPTIONAL: delete from DB
-    if (id) {
-      await fetch(`/api/expenses/${id}`, { method: "DELETE" });
+    // Remove from in-memory array
+    if (id !== null) {
+      expenses = expenses.filter(e => e.id !== id);
     }
   });
 }
 
-/* -----------------------------
-   Load Expenses From DB
-------------------------------*/
-async function loadExpenses() {
-  try {
-    const res = await fetch("/api/expenses");
-    const expenses = await res.json();
-
-    expenses.forEach(exp => {
-      addExpenseRow(
-        exp.expense,
-        parseFloat(exp.cost),
-        exp.description,
-        exp.id
-      );
-    });
-  } catch (err) {
-    console.error("Failed to load expenses:", err);
-  }
+// -----------------------------
+// Load initial expenses (if any)
+// -----------------------------
+function loadExpenses() {
+  expenses.forEach(exp => {
+    addExpenseRow(exp.name, exp.cost, exp.description, exp.id);
+  });
 }
 
 document.addEventListener("DOMContentLoaded", loadExpenses);
 
-/* -----------------------------
-   Submit New Expense
-------------------------------*/
-form.addEventListener("submit", async function (e) {
+// -----------------------------
+// Submit new expense
+// -----------------------------
+form.addEventListener("submit", e => {
   e.preventDefault();
 
   const name = expenseNameInput.value.trim();
@@ -104,39 +93,19 @@ form.addEventListener("submit", async function (e) {
 
   errorMsg.textContent = "";
 
-  const payload = {
-    userId: 1,              // Change when auth is added
-    amount: cost,
-    budget: budget,
-    expense: name,
-    cost: cost,
-    description: description
+  // Create a new expense object
+  const newExpense = {
+    id: expenses.length ? expenses[expenses.length - 1].id + 1 : 1,
+    name,
+    cost,
+    description
   };
 
-  try {
-    const res = await fetch("/api/expenses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+  expenses.push(newExpense); // Save in-memory
+  addExpenseRow(name, cost, description, newExpense.id);
 
-    const savedExpense = await res.json();
-
-    // ✅ Add row with DB ID
-    addExpenseRow(
-      savedExpense.expense,
-      parseFloat(savedExpense.cost),
-      savedExpense.description,
-      savedExpense.id
-    );
-
-    // Clear form
-    expenseNameInput.value = "";
-    costInput.value = "";
-    descriptionInput.value = "";
-
-  } catch (err) {
-    console.error("Failed to save expense:", err);
-    errorMsg.textContent = "Database error. Try again.";
-  }
+  // Clear form
+  expenseNameInput.value = "";
+  costInput.value = "";
+  descriptionInput.value = "";
 });
