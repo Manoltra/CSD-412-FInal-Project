@@ -11,24 +11,28 @@ module.exports = {
         type: Sequelize.INTEGER,
       },
       userId: {
+        allowNull: false,
         type: Sequelize.INTEGER,
-        allowNull: false,
-      },
-      category: {
-        type: Sequelize.STRING,
-        allowNull: false,
       },
       amount: {
+        allowNull: false,
         type: Sequelize.FLOAT,
-        allowNull: false,
       },
-      createdAt: {
+      budget: {
         allowNull: false,
-        type: Sequelize.DATE,
+        type: Sequelize.FLOAT,
+        defaultValue: 0,
       },
-      updatedAt: {
+      expense: {
         allowNull: false,
-        type: Sequelize.DATE,
+        type: Sequelize.STRING,
+      },
+      cost: {
+        allowNull: false,
+        type: Sequelize.FLOAT,
+      },
+      description: {
+        type: Sequelize.STRING,
       },
     });
   },

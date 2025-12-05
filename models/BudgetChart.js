@@ -2,7 +2,6 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../database');
 
 const BudgetChart = sequelize.define('BudgetChart', {
-  tableName: 'budget_table',
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
@@ -25,15 +24,12 @@ const BudgetChart = sequelize.define('BudgetChart', {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  cost: {
-    type: DataTypes.FLOAT,
-    allowNull: false,
-  },
   description: {
     type: DataTypes.STRING,
     allowNull: true,
   },
 }, {
+  tableName: 'budget_table',
   timestamps: true,
 });
 
