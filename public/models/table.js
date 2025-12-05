@@ -10,7 +10,6 @@ const errorMsg = document.getElementById("errormsg");
 
 let total = 0;
 let budget = parseFloat(budgetField.textContent) || 0;
-let expenses = []; // In-memory array
 
 // -----------------------------
 // Budget Logic
@@ -52,26 +51,57 @@ function addExpenseRow(name, cost, description, id = null) {
   updateBudgetStatus();
 
   // Delete button
-  row.querySelector(".deleteBtn").addEventListener("click", () => {
+row.querySelector(".deleteBtn").addEventListener("click", async () => {
+  if (id !== null) {
+    try {
+      const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete from server");
+
+      // Only remove from DOM and total if deletion succeeds
+      tableBody.removeChild(row);
+      total -= cost;
+      totalCostCell.textContent = `$${total.toFixed(2)}`;
+      updateBudgetStatus();
+
+    } catch (err) {
+      console.error("Failed to delete expense:", err);
+      errorMsg.textContent = "Failed to delete expense from server.";
+    }
+  } else {
+    // fallback: just remove from table if no id (should rarely happen)
     tableBody.removeChild(row);
     total -= cost;
     totalCostCell.textContent = `$${total.toFixed(2)}`;
     updateBudgetStatus();
+  }
+});
 
-    // Remove from in-memory array
-    if (id !== null) {
-      expenses = expenses.filter(e => e.id !== id);
-    }
-  });
 }
 
 // -----------------------------
 // Load initial expenses (if any)
 // -----------------------------
-function loadExpenses() {
-  expenses.forEach(exp => {
-    addExpenseRow(exp.name, exp.cost, exp.description, exp.id);
-  });
+async function loadExpenses() {
+  try {
+    const res = await fetch("/api/expenses");
+    if (!res.ok) throw new Error("Failed to fetch expenses");
+    const expenses = await res.json(); // <-- get JSON from database
+
+    let totalCost = 0;
+
+    expenses.forEach(exp => {
+      addExpenseRow(exp.expense, parseFloat(exp.cost), exp.description, exp.id);
+      totalCost += parseFloat(exp.cost);
+    });
+
+    total = totalCost;
+    totalCostCell.textContent = `$${total.toFixed(2)}`;
+    updateBudgetStatus();
+
+  } catch (err) {
+    console.error("Failed to load expenses:", err);
+    errorMsg.textContent = "Failed to load expenses from server.";
+  }
 }
 
 document.addEventListener("DOMContentLoaded", loadExpenses);
@@ -79,7 +109,7 @@ document.addEventListener("DOMContentLoaded", loadExpenses);
 // -----------------------------
 // Submit new expense
 // -----------------------------
-form.addEventListener("submit", e => {
+form.addEventListener("submit", async e => {
   e.preventDefault();
 
   const name = expenseNameInput.value.trim();
@@ -93,19 +123,34 @@ form.addEventListener("submit", e => {
 
   errorMsg.textContent = "";
 
-  // Create a new expense object
-  const newExpense = {
-    id: expenses.length ? expenses[expenses.length - 1].id + 1 : 1,
-    name,
-    cost,
-    description
+  const payload = {
+    userId: 1,          // adjust when you add auth
+    expense: name,
+    cost: cost,
+    description: description,
+    budget: parseFloat(budgetField.textContent) || 0
   };
 
-  expenses.push(newExpense); // Save in-memory
-  addExpenseRow(name, cost, description, newExpense.id);
+  try {
+    const res = await fetch("/api/expenses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
 
-  // Clear form
-  expenseNameInput.value = "";
-  costInput.value = "";
-  descriptionInput.value = "";
+    if (!res.ok) throw new Error("Failed to save expense");
+    const savedExpense = await res.json();
+
+    addExpenseRow(savedExpense.expense, parseFloat(savedExpense.cost), savedExpense.description, savedExpense.id);
+
+    // Clear form
+    expenseNameInput.value = "";
+    costInput.value = "";
+    descriptionInput.value = "";
+
+  } catch (err) {
+    console.error(err);
+    errorMsg.textContent = "Failed to save expense.";
+  }
 });
+
