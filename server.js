@@ -6,6 +6,7 @@ const app = express();
 const port = 3000;
 
 const sequelize = require('./database');
+const bcrypt = require("bcrypt");
 const User = require('./models/User');
 const BudgetTable = require('./models/BudgetTable');
 const BudgetItem = require('./models/BudgetItem');
@@ -159,3 +160,50 @@ app.delete('/api/budget-items/:id', async (req, res) => {
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
+
+// ------------------
+// Signup
+app.post("/api/signup", async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password)
+    return res.status(400).json({ error: "Username and password required" });
+
+  try {
+    const existingUser = await User.findOne({ where: { username } });
+    if (existingUser)
+      return res.status(400).json({ error: "Username already exists" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await User.create({ username, password: hashedPassword });
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error during signup" });
+  }
+});
+
+// ------------------
+// Login
+app.post("/api/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  try {
+    const user = await User.findOne({ where: { username } });
+    if (!user) return res.status(400).json({ error: "Invalid username or password" });
+
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(400).json({ error: "Invalid username or password" });
+
+    // For now, store user ID in session or return as a token
+    // Example: send user ID to frontend (you can switch to JWT or express-session)
+    res.json({ success: true, userId: user.id });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error during login" });
+  }
+});
+

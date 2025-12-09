@@ -1,3 +1,12 @@
+const userId = localStorage.getItem("userId");
+
+if (!userId) {
+  document.body.innerHTML = `
+    <p>Please <a href="/auth.html">log in</a> or sign up to view your budget lists.</p>
+  `;
+  throw new Error("User not logged in");
+}
+
 let budgetLists = [];
 const tableBody = document.querySelector("#budgetTable tbody");
 
@@ -5,7 +14,7 @@ document.addEventListener("DOMContentLoaded", loadBudgetLists);
 
 async function loadBudgetLists() {
   try {
-    const res = await fetch("/api/budget-tables");
+    const res = await fetch(`/api/budget-tables/${userId}`);
     if (!res.ok) throw new Error("Failed to load budget tables");
 
     budgetLists = await res.json(); // [{id, name, budget}, ...]
