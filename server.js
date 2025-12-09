@@ -5,13 +5,17 @@ const path = require('path');
 const app = express();
 const port = 3000;
 
-const BudgetTable = require('./models/BudgetTable');
 const sequelize = require('./database');
+const User = require('./models/User');
+const BudgetTable = require('./models/BudgetTable');
+const BudgetItem = require('./models/BudgetItem');
 
+// -----------------------------
 // Sync the database
+// -----------------------------
 (async () => {
   try {
-    await sequelize.sync({ alter: true });
+    await sequelize.sync({ alter: true }); // Update tables if needed
     console.log('Database synced');
   } catch (err) {
     console.error('DB sync error:', err);
@@ -31,88 +35,123 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 app.get('/about', (req, res) => res.sendFile(path.join(__dirname, 'public', 'about.html')));
 app.get('/charts', (req, res) => res.sendFile(path.join(__dirname, 'public', 'charts.html')));
 
-//-----------------------------
-//API Routes
-//-----------------------------
-// GET all expenses
-app.get('/api/expenses', async (req, res) => {
+// -----------------------------
+// API Routes
+// -----------------------------
+
+// -------- Users --------
+
+// Create a user
+app.post('/api/users', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: "Invalid data" });
+
   try {
-    const expenses = await BudgetTable.findAll({ order: [['createdAt', 'ASC']] });
-    res.json(expenses);
+    const user = await User.create({ username, password });
+    res.json(user);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch expenses' });
+    console.error(err);
+    res.status(500).json({ error: "Failed to create user" });
   }
 });
 
-// POST new expense
-app.post('/api/expenses', async (req, res) => {
+// -------- Budget Tables --------
+
+// Get all budget tables for a user
+app.get('/api/budget-tables/:userId', async (req, res) => {
+  const userId = parseInt(req.params.userId);
   try {
-    const { userId, expense, cost, description, amount } = req.body;
-    const newExpense = await BudgetTable.create({ userId, expense, cost, description, amount });
-    res.json(newExpense);
+    const tables = await BudgetTable.findAll({
+      where: { userId },
+      include: [BudgetItem],
+      order: [['createdAt', 'ASC']]
+    });
+    res.json(tables);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save expense' });
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch budget tables" });
   }
 });
 
-// DELETE expense
-app.delete('/api/expenses/:id', async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    const deleted = await BudgetTable.destroy({ where: { id } });
-    if (deleted) res.json({ success: true });
-    else res.status(404).json({ error: 'Expense not found' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to delete expense' });
-  }
-});
-
-app.post("/api/budget-lists", async (req, res) => {
-  const { name, budget, total, expenses } = req.body;
-
-  if (!name || !Array.isArray(expenses)) {
-    return res.status(400).json({ error: "Invalid data" });
-  }
-
-  const client = await pool.connect();
+// Create a new budget table with items
+app.post('/api/budget-tables', async (req, res) => {
+  const { userId, name, budget, description, items } = req.body;
+  if (!userId || !name || !Array.isArray(items)) return res.status(400).json({ error: "Invalid data" });
 
   try {
-    await client.query("BEGIN");
+    const budgetTable = await BudgetTable.create({ userId, name, budget, description });
 
-    // Insert list
-    const listRes = await client.query(
-      `INSERT INTO budget_lists (name, budget, total)
-       VALUES ($1, $2, $3)
-       RETURNING id`,
-      [name, budget, total]
-    );
-
-    const listId = listRes.rows[0].id;
-
-    // Insert each expense item
-    for (const exp of expenses) {
-      await client.query(
-        `INSERT INTO budget_list_items (list_id, expense, cost, description)
-         VALUES ($1, $2, $3, $4)`,
-        [listId, exp.expense, exp.cost, exp.description]
-      );
+    for (const item of items) {
+      await BudgetItem.create({
+        budgetId: budgetTable.id,
+        name: item.name,
+        cost: item.cost,
+        description: item.description || null
+      });
     }
 
-    await client.query("COMMIT");
-
-    res.json({ success: true, listId });
+    const tableWithItems = await BudgetTable.findByPk(budgetTable.id, { include: [BudgetItem] });
+    res.json(tableWithItems);
 
   } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("Error saving budget list:", err);
-    res.status(500).json({ error: "Server error while saving list" });
-
-  } finally {
-    client.release();
+    console.error(err);
+    res.status(500).json({ error: "Failed to create budget table" });
   }
 });
 
+// Delete a budget table and all its items
+app.delete('/api/budget-tables/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const deleted = await BudgetTable.destroy({ where: { id } });
+    if (deleted) res.json({ success: true });
+    else res.status(404).json({ error: "Budget table not found" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete budget table" });
+  }
+});
 
+// -------- Budget Items --------
+
+// Get all items for a budget table
+app.get('/api/budget-items/:budgetId', async (req, res) => {
+  const budgetId = parseInt(req.params.budgetId);
+  try {
+    const items = await BudgetItem.findAll({ where: { budgetId } });
+    res.json(items);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch budget items" });
+  }
+});
+
+// Create a single budget item
+app.post('/api/budget-items', async (req, res) => {
+  const { budgetId, name, cost, description } = req.body;
+  if (!budgetId || !name || cost === undefined) return res.status(400).json({ error: "Invalid data" });
+
+  try {
+    const item = await BudgetItem.create({ budgetId, name, cost, description });
+    res.json(item);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to create budget item" });
+  }
+});
+
+// Delete a single budget item
+app.delete('/api/budget-items/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const deleted = await BudgetItem.destroy({ where: { id } });
+    if (deleted) res.json({ success: true });
+    else res.status(404).json({ error: "Budget item not found" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete budget item" });
+  }
+});
 
 // -----------------------------
 // Start server

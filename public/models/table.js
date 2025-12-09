@@ -8,6 +8,8 @@ const budgetField = document.getElementById("budget");
 const budgetStatusCell = document.getElementById("budgetStatus");
 const errorMsg = document.getElementById("errormsg");
 
+// Assume we have a current budget table ID
+const budgetTableId = 1; // TODO: dynamically set based on loaded budget
 let total = 0;
 let budget = parseFloat(budgetField.textContent) || 0;
 
@@ -50,56 +52,50 @@ function addExpenseRow(name, cost, description, id = null) {
   totalCostCell.textContent = `$${total.toFixed(2)}`;
   updateBudgetStatus();
 
-  // Delete button
-row.querySelector(".deleteBtn").addEventListener("click", async () => {
-  if (id !== null) {
-    try {
-      const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete from server");
-
-      // Only remove from DOM and total if deletion succeeds
+  row.querySelector(".deleteBtn").addEventListener("click", async () => {
+    if (!id) {
       tableBody.removeChild(row);
       total -= cost;
-      totalCostCell.textContent = `$${total.toFixed(2)}`;
       updateBudgetStatus();
+      return;
+    }
 
+    try {
+      const res = await fetch(`/api/budget-items/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+
+      tableBody.removeChild(row);
+      total -= cost;
+      updateBudgetStatus();
     } catch (err) {
-      console.error("Failed to delete expense:", err);
+      console.error(err);
       errorMsg.textContent = "Failed to delete expense from server.";
     }
-  } else {
-    // fallback: just remove from table if no id (should rarely happen)
-    tableBody.removeChild(row);
-    total -= cost;
-    totalCostCell.textContent = `$${total.toFixed(2)}`;
-    updateBudgetStatus();
-  }
-});
-
+  });
 }
 
 // -----------------------------
-// Load initial expenses (if any)
+// Load expenses for this budget
 // -----------------------------
 async function loadExpenses() {
   try {
-    const res = await fetch("/api/expenses");
+    const res = await fetch(`/api/budget-items/${budgetTableId}`);
     if (!res.ok) throw new Error("Failed to fetch expenses");
-    const expenses = await res.json(); // <-- get JSON from database
+    const expenses = await res.json();
 
-    let totalCost = 0;
+    total = 0;
+    tableBody.innerHTML = "";
 
     expenses.forEach(exp => {
-      addExpenseRow(exp.expense, parseFloat(exp.cost), exp.description, exp.id);
-      totalCost += parseFloat(exp.cost);
+      addExpenseRow(exp.name, parseFloat(exp.cost), exp.description, exp.id);
+      total += parseFloat(exp.cost);
     });
 
-    total = totalCost;
     totalCostCell.textContent = `$${total.toFixed(2)}`;
     updateBudgetStatus();
 
   } catch (err) {
-    console.error("Failed to load expenses:", err);
+    console.error(err);
     errorMsg.textContent = "Failed to load expenses from server.";
   }
 }
@@ -124,15 +120,14 @@ form.addEventListener("submit", async e => {
   errorMsg.textContent = "";
 
   const payload = {
-    userId: 1,          // adjust when you add auth
-    expense: name,
-    cost: cost,
-    description: description,
-    budget: parseFloat(budgetField.textContent) || 0
+    budgetId: budgetTableId,
+    name,
+    cost,
+    description
   };
 
   try {
-    const res = await fetch("/api/expenses", {
+    const res = await fetch("/api/budget-items", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -141,9 +136,8 @@ form.addEventListener("submit", async e => {
     if (!res.ok) throw new Error("Failed to save expense");
     const savedExpense = await res.json();
 
-    addExpenseRow(savedExpense.expense, parseFloat(savedExpense.cost), savedExpense.description, savedExpense.id);
+    addExpenseRow(savedExpense.name, parseFloat(savedExpense.cost), savedExpense.description, savedExpense.id);
 
-    // Clear form
     expenseNameInput.value = "";
     costInput.value = "";
     descriptionInput.value = "";
@@ -153,4 +147,3 @@ form.addEventListener("submit", async e => {
     errorMsg.textContent = "Failed to save expense.";
   }
 });
-

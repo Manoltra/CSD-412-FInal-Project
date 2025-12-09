@@ -1,17 +1,18 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../database');
+const { DataTypes } = require("sequelize");
+const sequelize = require("../database");
+const User = require("./User");
 
-const BudgetChart = sequelize.define('BudgetTable', {
-userId: { type: DataTypes.INTEGER, allowNull: false },
+const BudgetTable = sequelize.define("BudgetTable", {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-
-  expense: { type: DataTypes.STRING, allowNull: false },
-  cost: { type: DataTypes.FLOAT, allowNull: false },
-  amount: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
-  description: { type: DataTypes.STRING },
+  name: { type: DataTypes.STRING, allowNull: false },
+  budget: { type: DataTypes.FLOAT, allowNull: false },
+  description: { type: DataTypes.STRING }
 }, {
-  tableName: 'budget_table',
+  tableName: "budget_tables",
   timestamps: true
 });
 
-module.exports = BudgetChart;
+User.hasMany(BudgetTable, { foreignKey: "userId", onDelete: "CASCADE" });
+BudgetTable.belongsTo(User, { foreignKey: "userId" });
+
+module.exports = BudgetTable;
