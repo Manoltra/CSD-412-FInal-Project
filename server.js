@@ -67,6 +67,52 @@ app.delete('/api/expenses/:id', async (req, res) => {
   }
 });
 
+app.post("/api/budget-lists", async (req, res) => {
+  const { name, budget, total, expenses } = req.body;
+
+  if (!name || !Array.isArray(expenses)) {
+    return res.status(400).json({ error: "Invalid data" });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // Insert list
+    const listRes = await client.query(
+      `INSERT INTO budget_lists (name, budget, total)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [name, budget, total]
+    );
+
+    const listId = listRes.rows[0].id;
+
+    // Insert each expense item
+    for (const exp of expenses) {
+      await client.query(
+        `INSERT INTO budget_list_items (list_id, expense, cost, description)
+         VALUES ($1, $2, $3, $4)`,
+        [listId, exp.expense, exp.cost, exp.description]
+      );
+    }
+
+    await client.query("COMMIT");
+
+    res.json({ success: true, listId });
+
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error saving budget list:", err);
+    res.status(500).json({ error: "Server error while saving list" });
+
+  } finally {
+    client.release();
+  }
+});
+
+
 
 // -----------------------------
 // Start server
