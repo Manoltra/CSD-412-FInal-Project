@@ -1,0 +1,26 @@
+{
+  "development": {
+    "username": "admin_username",
+    "password": "password",
+    "database": "csd_412_final_project_dev",
+    "host": "localhost",
+    "port": 5432,
+    "dialect": "postgres"
+  },
+  "test": {
+    "username": "testuser",
+    "password": "fall25",
+    "database": "csd_412_final_project_test",
+    "host": "localhost",
+    "port": 5432,
+    "dialect": "postgres"
+  },
+  "production": {
+    "username": "your_username",
+    "password": "your_password",
+    "database": "csd_412_final_project_prod",
+    "host": "localhost",
+    "port": 5432,
+    "dialect": "postgres"
+  }
+}
